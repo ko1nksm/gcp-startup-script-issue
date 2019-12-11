@@ -1,0 +1,42 @@
+resources:
+- name: gcp-startup-script-issue
+  type: compute.v1.instance
+  properties:
+    zone: us-central1-a
+    machineType: zones/us-central1-a/machineTypes/f1-micro
+    disks:
+    - deviceName: boot
+      boot: true
+      autoDelete: true
+      initializeParams:
+        sourceImage: projects/debian-cloud/global/images/family/debian-9
+    networkInterfaces:
+    - network: global/networks/default
+      accessConfigs:
+      - name: External NAT
+        type: ONE_TO_ONE_NAT
+    metadata:
+      items:
+      - key: startup-script
+        value: |
+          apt-get update
+
+          if dpkg -s google-fluentd; then
+            apt-get install -y apache2
+          else
+            curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh
+            bash install-logging-agent.sh
+            rm install-logging-agent.sh
+          fi
+          systemctl disable google-fluentd
+          # Generate google-fluentd configuration (omitted)
+          systemctl restart google-fluentd --no-block
+
+          apt-get install -y apache2
+          systemctl disable apache2
+          # Generate apache2 configuration (omitted)
+          systemctl restart apache2 --no-block
+    serviceAccounts:
+      - email: default
+        scopes:
+        - https://www.googleapis.com/auth/logging.write

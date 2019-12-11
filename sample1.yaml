@@ -1,0 +1,39 @@
+resources:
+- name: gcp-startup-script-issue
+  type: compute.v1.instance
+  properties:
+    zone: us-central1-a
+    machineType: zones/us-central1-a/machineTypes/f1-micro
+    disks:
+    - deviceName: boot
+      boot: true
+      autoDelete: true
+      initializeParams:
+        sourceImage: projects/debian-cloud/global/images/family/debian-9
+    networkInterfaces:
+    - network: global/networks/default
+      accessConfigs:
+      - name: External NAT
+        type: ONE_TO_ONE_NAT
+    metadata:
+      items:
+      - key: startup-script
+        value: |
+          apt-get update
+
+          # NOTE: Two Stackdriver agents (google-fluentd) will run
+          # after `sudo reboot` and high cpu usage.
+
+          if ! dpgk -s google-fluentd; then
+            curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh
+            bash install-logging-agent.sh
+            rm install-logging-agent.sh
+          fi
+          # Generate google-fluentd configuration (omitted)
+          service google-fluentd restart
+
+          apt-get install -y apache2
+    serviceAccounts:
+      - email: default
+        scopes:
+        - https://www.googleapis.com/auth/logging.write
